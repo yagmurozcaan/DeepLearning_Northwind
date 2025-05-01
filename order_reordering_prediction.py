@@ -10,6 +10,8 @@ from sklearn.utils import class_weight
 from imblearn.over_sampling import SMOTE
 from sqlalchemy import create_engine
 from datetime import datetime
+from sklearn.utils.class_weight import compute_class_weight
+
 
 """görev:Northwind veritabanında 
 müşterilerin toplam harcaması,
@@ -26,89 +28,95 @@ tahmin eden bir derin öğrenme modeli kur.
 
 def order_recordering_prediction():
     query = """
-    
-        SELECT
+    SELECT
         c.customer_id,
-        COUNT(DISTINCT o.order_id) as OrderCount,
-        SUM(od.quantity * od.unit_price * (1 - od.discount)) as TotalSpending,
-        AVG(od.quantity * od.unit_price * (1 - od.discount)) as AvgOrderSize,
-        o.order_date
-        FROM customers c
-        LEFT JOIN orders o ON c.customer_id = o.customer_id
-        LEFT JOIN order_details od ON o.order_id = od.order_id
-        WHERE o.order_date IS NOT NULL
-        GROUP BY c.customer_id, o.order_date
-                
+        COUNT(o.order_id) AS total_orders,
+        SUM(od.unit_price * od.quantity) AS total_spent,
+        AVG(od.unit_price * od.quantity) AS avg_order_value,
+        MAX(o.order_date) AS last_order_date
+    FROM
+        customers c
+    JOIN orders o ON c.customer_id = o.customer_id
+    JOIN order_details od ON o.order_id = od.order_id
+    GROUP BY
+        c.customer_id
     """
     df = pd.read_sql_query(query, engine)
-    df['order_date'] = pd.to_datetime(df['order_date'])
-    df = df.sort_values(by=['customer_id', 'order_date'])
-    
-    df['PrevOrderDate'] = df.groupby('customer_id')['order_date'].shift(1)
-    df['DaysDiff'] = (df['order_date'] - df['PrevOrderDate']).dt.days
+    df['last_order_date'] = pd.to_datetime(df['last_order_date'])
+    print(df.head())
+    # ---------------------
+    # 3. Tüm Sipariş Tarihlerini Çek
+    # ---------------------
+    orders = pd.read_sql_query("SELECT customer_id, order_date FROM orders", engine)
+    orders['order_date'] = pd.to_datetime(orders['order_date'])
 
-    df['WillOrder'] = (df['DaysDiff'] <= 180).astype(int)
-    df['WillOrder'] = df['WillOrder'].fillna(0) # İlk sipariş için NaN'ları 0 yap
+    # ---------------------
+    # 4. Etiket (label) Oluştur — 6 Ay Öncesinde Sipariş Verdi mi?
+    # ---------------------
+    labels = []
+    for idx, row in df.iterrows():
+        cid = row['customer_id']
+        last_date = row['last_order_date']
+        six_months_before = last_date - pd.DateOffset(months=6)
 
+        customer_orders = orders[
+            (orders['customer_id'] == cid) &
+            (orders['order_date'] >= six_months_before) &
+            (orders['order_date'] < last_date)
+        ]
 
-    df_latest = df.groupby('customer_id').last().reset_index()
+        label = 1 if not customer_orders.empty else 0
+        labels.append(label)
 
-    df_latest['LastOrderMonth'] = df_latest['order_date'].dt.month
-
-    print(df_latest.columns)
-
-    #print(df)
-    #Giriş özellikleri
-    X = df_latest[['ordercount', 'totalspending', 'avgordersize', 'DaysDiff', 'LastOrderMonth']]
-    y = df_latest['WillOrder']
-
-    #Eksik verileri doldurma
-    X = X.fillna({'totalspending': 0, 'avgordersize': 0, 'DaysDiff': 365})
-
-    #Veriyi ölçeklendirme
+    df['label'] = labels
+    print(df['label'].value_counts())
+    # ---------------------
+    # 5. Özellik ve Etiket Ayırma
+    # ---------------------
+    X = df[['total_spent', 'total_orders', 'avg_order_value']].values
+    y = df['label'].values
+ 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-
-    #Eğitim ve test setine ayırma
+ 
     X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-    #Sınıf dengesizliği için SMOTE
-    smote = SMOTE(random_state=42) #Azınlık sınıf için sentetik örnekler üretir
-    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
-
-    #Derin öğrenme modeli
+    # ---------------------
+    # 6. TensorFlow Modeli
+    # ---------------------
     model = tf.keras.Sequential([
-        tf.keras.layers.Dense(units=64, activation='relu', input_shape=[X_train.shape[1]]),
-        tf.keras.layers.Dense(units=32, activation='relu'),
-        tf.keras.layers.Dense(units=16, activation='relu'),
-        tf.keras.layers.Dense(units=1, activation='sigmoid') # Sınıflandırma için sigmoid
+        tf.keras.layers.Dense(16, activation='relu', input_shape=(X_train.shape[1],)),
+        tf.keras.layers.Dense(8, activation='relu'),
+        tf.keras.layers.Dense(1, activation='sigmoid')
     ])
-
-    #Model derleme
+     
     model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-    #Sınıf ağırlıkları hesaplama
-    #Modelin kaybını (loss) dengesiz sınıflar için telafi eder.
+    # ---------------------
+    # 7. Class Weight Hesaplama (Dengesiz Veri Varsa)
+    # ---------------------
+    class_weights = compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
+    class_weight_dict = {0: class_weights[0], 1: class_weights[1]}
 
-    class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
-    class_weights_dict = dict(enumerate(class_weights))
-
-    #Model eğitimi
+    # ---------------------
+    # 8. Modeli Eğit
+    # ---------------------
     history = model.fit(
-        X_train_resampled, y_train_resampled,
-        epochs=100,
-        batch_size=32,
-        validation_data=(X_test, y_test),
-        class_weight=class_weights_dict,
+        X_train, y_train,
+        epochs=30,
+        class_weight=class_weight_dict,
         verbose=0
-        )
+    )
 
-    #Model değerlendirme
-    loss, accuracy = model.evaluate(X_test, y_test)
-    print(f"Test Doğruluğu: {accuracy:.4f}")
-    
+    # ---------------------
+    # 9. Modeli Test Et
+    # ---------------------
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    print(f"\nTest Accuracy: {accuracy:.2f}")
 
-    sample_customer = np.array([[1, 814.4999828338623, 20271.49999427795410, 200, 6]]) # Örnek veri: 5 sipariş, 1000 harcama, 200 avg, 90 gün, Haziran
+
+
+    sample_customer = np.array([[20, 10, 10]]) # 
     sample_customer_scaled = scaler.transform(sample_customer)
     prediction = model.predict(sample_customer_scaled)
     print(f"Tahmin: {prediction[0][0]:.4f} (1'e yakınsa sipariş verecek, 0'a yakınsa vermeyecek)")
