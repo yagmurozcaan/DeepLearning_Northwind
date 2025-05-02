@@ -1,44 +1,46 @@
 # DeepLearning_Northwind
 
-Bu proje, Northwind veritabanı üzerinde bazı tahmin modelleri geliştirmek için yapıldı. Amaç, müşterilerin satın alma davranışlarını analiz ederek gelecekteki sipariş olasılıklarını tahmin etmek.
+This project was developed to build some prediction models using the Northwind database. The goal is to analyze customer purchasing behavior and predict the likelihood of future orders.
 
-## 📌 Proje Hakkında
+## 📌 About the Project
 
-Northwind veritabanındaki müşterilerin geçmiş sipariş verilerini kullanarak:
+Using customers' past order data from the Northwind database:
 
-- **Sipariş Tekrarı Tahmini**: Müşterinin önümüzdeki 6 ay içinde tekrar sipariş verip vermeyeceğini tahmin eder.
-- **Yeni Ürün Satın Alma Potansiyeli**: Müşterinin yeni bir ürünü satın alma olasılığını değerlendirir.
-- **İade Olasılığı Tahmini**: Müşterinin bir ürünü iade etme ihtimalini öngörür.
+- **Order Reordering Prediction**: Predicts whether a customer will reorder in the next 6 months.
+- **New Product Purchase Potential**: Evaluates the likelihood of a customer purchasing a new product.
+- **Return Probability Prediction**: Estimates the chance of a product being returned.
 
-Bu tahminler, derin öğrenme modelleri kullanılarak gerçekleştirilmiştir.
+These predictions are made using deep learning models.
 
-## 🛠️ Kullanılan Teknolojiler
+## 🛠️ Technologies Used
 
-- Python
-- TensorFlow / Keras
-- Pandas, NumPy, Matplotlib
-- Scikit-learn
-- SMOTE (Veri dengeleme için)
+- Python  
+- TensorFlow / Keras  
+- Pandas, NumPy, Matplotlib  
+- Scikit-learn  
+- SMOTE (for data balancing)
 
-## 📂 Dosya Açıklamaları
+## 📂 File Descriptions
 
-- `main.py`: Projenin ana dosyası, modellerin çalıştırılmasını sağlar.
-- `order_reordering_prediction.py`: Sipariş tekrar tahmini modeli.
-- `new_product_purchase_potential.py`: Yeni ürün satın alma potansiyeli modeli.
-- `return_probability_prediction.py`: İade olasılığı tahmini modeli.
-- `database.py`: Veritabanı bağlantı ayarları.
-- `requirements.txt`: Gerekli Python kütüphaneleri.
+- `main.py`: Main file that runs the models.
+- `order_reordering_prediction.py`: Model for predicting reorders.
+- `new_product_purchase_potential.py`: Model for predicting new product purchases.
+- `return_probability_prediction.py`: Model for predicting return probability.
+- `database.py`: Database connection settings.
+- `requirements.txt`: Python dependencies.
 
-## 🚀 Nasıl Çalıştırılır?
+## 🚀 How to Run
 
-1. Gerekli kütüphaneleri yükleyin:
+1. Install required libraries:
 
    ```bash
    pip install -r requirements.txt
-2. Veritabanı bağlantı ayarlarını database.py dosyasında yapılandırın.
+2.Set your database connection settings in database.py.
 
-3. İlgili Python dosyasını çalıştırın:
-    python main.py
+3. Run the desired Python file:
+      ```bash
+   python main.py
+📊 Visualization
+The training and performance of the models are shown with accuracy and loss graphs for both training and validation. SMOTE class balancing effects before and after are also visualized.
 
-📊 Görselleştirme
-Modellerin eğitim süreci ve performansı, eğitim ve doğrulama kayıpları ile doğruluk oranları grafiklerle gösterilmektedir. Ayrıca, SMOTE uygulaması öncesi ve sonrası etiket dağılımları da görselleştirilmiştir.
+   
