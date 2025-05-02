@@ -19,6 +19,10 @@ These predictions are made using deep learning models.
 - Pandas, NumPy, Matplotlib  
 - Scikit-learn  
 - SMOTE (for data balancing)
+- **Seaborn** (for visualizations)  
+- **Matplotlib**  
+- **Pydantic** (used with FastAPI for data validation)
+
 
 ## 📂 File Descriptions
 
