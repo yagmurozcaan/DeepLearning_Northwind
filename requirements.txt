@@ -1,0 +1,10 @@
+pandas
+numpy
+tensorflow==2.14.0
+shap
+matplotlib
+scikit-learn
+sqlalchemy
+seaborn
+fastapi
+uvicorn

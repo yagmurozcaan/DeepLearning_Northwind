@@ -134,7 +134,5 @@ class ProductReturnRiskModel:
 
 
 # Modeli çalıştır
-def segment_return_probability_prediction():
-    model = ProductReturnRiskModel()
-    model.run()
-    return {"message": "İade riski tahmin modeli başarıyla çalıştırıldı."}
+model = ProductReturnRiskModel()
+model.run()
